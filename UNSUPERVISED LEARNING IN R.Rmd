@@ -1,0 +1,626 @@
+
+# UNSUPERVISED LEARNING IN R
+
+# Part 1&2: PCA & Feature selection
+
+
+```{r}
+# Loading our dataset
+
+carre <- read.csv("http://bit.ly/CarreFourDataset")
+head(carre)
+
+
+```
+
+```{r}
+summary(carre)
+
+```
+
+```{r}
+
+#Previweing the dataset
+str(carre)
+
+dim(carre)
+
+head(carre)
+
+class(carre)
+
+typeof(carre)
+
+#Finding the length of the dataframe
+length(carre)
+```
+
+
+```{r}
+##Cleaning the data
+#Identifying the missing values
+
+colSums(is.na(carre))
+```
+```{r}
+##Checking and dealing with duplicates
+duplicate_rows <- carre[duplicated(carre),]
+duplicate_rows
+
+```
+```{r}
+# Selecting and encoding the categorical columns.
+library(dplyr)
+
+for (i in 1:length(carre %>% select ( 2,3,4,5,11))){
+ carre[[i]] <- as.integer(as.factor(carre[[i]]))
+}
+
+head(carre)
+```
+
+```{r}
+carre$Payment<- as.integer(as.factor(carre$Payment))
+head(carre)
+```
+
+```{r}
+
+
+```
+
+
+```{r}
+# Using the total column as the target variable
+#We then pass df to the prcomp(). We also set two arguments, center and scale, 
+# to be TRUE then preview our object with summary
+# ---
+# 
+carre.pca <- prcomp(carre[,c(2:8,11,12,14,15)], center = TRUE, scale. = TRUE)
+summary(carre.pca)
+
+# As a result we obtain 11 principal components, 
+# each which explain a percentage of the total variation of the dataset
+# PC1 explains 35.77% of the total variance, which means that nearly one-third 
+# of the information in the dataset (11 variables) can be encapsulated 
+# by just that one Principal Component. PC2 explains 10.27% of the variance.
+```
+
+
+```{r}
+# Calling str() to have a look at your PCA object
+# ---
+# 
+str(carre.pca)
+
+carre.pca$sdev
+
+carre.pca$center
+
+carre.pca$scale
+# Here we note that our pca object: The center point ($center), scaling ($scale), 
+# standard deviation(sdev) of each principal component. 
+# The relationship (correlation or anticorrelation, etc) 
+# between the initial variables and the principal components ($rotation). 
+# The values of each sample in terms of the principal components ($x)
+```
+
+
+```{r}
+# We will now plot our pca. This will provide us with some very useful insights: 
+# which customers are most similar to each other 
+# ---
+# 
+
+# Installing our ggbiplot visualisation package
+# install the package devtools
+
+library(devtools)
+
+library(scales)
+
+
+install_github("vqv/ggbiplot")
+
+
+```
+
+
+```{r}
+# Then Loading our ggbiplot library
+#  
+library(ggbiplot)
+ggbiplot::ggbiplot(carre.pca)
+
+# From the graph we will see that the variables Unit price, gross income and quantity contribute to PC1, 
+# with higher values in those variables moving the samples to the right on the plot. 
+```
+
+
+```{r}
+# Adding more detail to the plot, we provide arguments rownames as labels
+# 
+ggbiplot::ggbiplot(carre.pca, labels=(carre$Total), obs.scale = 1, var.scale = 1)
+
+# We now see which customers are more similar to one anothercars are similar to one another in terms of quantity of items bought. 
+# The customers who bought similar number of items are clustered together
+#
+```
+
+```{r}
+#Install ggfortify package
+#The autoplot() function also generates a useful data table of the calculated principal components we which we will use later.
+
+library(ggfortify)
+
+par(mfrow = c(1,2))
+pca.plot <- autoplot(carre.pca, data = carre[,c(2:8,11,12,14,15,16)], colour = 'Total', col= "blue", main = "Plot of PC1 & PC2 visualizing total income distribution")
+pca.plot
+
+
+
+pca.plot2 <- autoplot(carre.pca, data = carre[,c(2:7,11,12,14,15,16)], colour = 'cogs', col= "blue", main = "Plot visualizing cost of goods(cog")
+
+
+pca.plot2
+
+```
+
+```{r}
+# Having performed PCA using this dataset, if we were to build a regression model that will inform the marketing department on the most relevant marketing strategies that will result in the highest no. of sales (total price including tax), the variables to Quantity, gross income and unit price will be significant variables as seen in the PCA analysis
+
+```
+
+```{r}
+# Using the rating column as the target variable
+carre.pca1 <- prcomp(carre[,c(2:8,11,12,14,16)], center = TRUE, scale. = TRUE)
+summary(carre.pca1)
+
+
+ggbiplot::ggbiplot(carre.pca1)
+
+
+ggbiplot::ggbiplot(carre.pca1, labels=(carre$Rating), obs.scale = 1, var.scale = 1)
+
+
+pca.plot1 <- autoplot(carre.pca1, data = carre[,c(2:7,11,12,14,15,16)], colour = 'Rating', col= "blue", main = "Plot visualizing quantity distribution")
+
+pca.plot1
+```
+
+## t-SNE 
+
+
+```{r}
+# Installing Rtnse package
+# 
+install.packages("Rtsne")
+
+# Loading our tnse library
+# 
+library(Rtsne)
+
+```
+```{r}
+
+# Colors for plotting using quantity as our target variable
+data.label2 <- abs(carre$Total)
+
+colour2 <- rainbow(length(unique(data.label2)))
+names(colour2) <- unique(data.label2)
+
+colour2
+
+# Executing the algorithm on curated data
+# 
+carre.tsne2 <- Rtsne(carre[,c(2:7,11,12,14,15)], dims = 2, perplexity=30, verbose=TRUE, max_iter = 500)
+
+# Getting the duration of execution
+# 
+carre.exeTimeTsne2 <- system.time(Rtsne(carre[,c(2:7,11,12,14,15)], dims = 2, perplexity=30, verbose=TRUE, max_iter = 500))
+
+plot(carre.tsne2$Y, t='n', main="tsne")
+text(carre.tsne2$Y, labels= abs(carre$Total), col=colour2[abs(carre$Total)])
+```
+```{r}
+
+# Colors for plotting using quantity as our target variable
+data.label3 <- carre$Rating
+
+colour3 <- rainbow(length(unique(data.label3)))
+names(colour3) <- unique(data.label3)
+
+colour3
+
+# Executing the algorithm on curated data
+# 
+carre.tsne3 <- Rtsne(carre[,c(2:7,11,12,14,16)], dims = 2, perplexity=30, verbose=TRUE, max_iter = 500)
+
+# Getting the duration of execution
+# 
+carre.exeTimeTsne3 <- system.time(Rtsne(carre[,c(2:7,11,12,14,16)], dims = 2, perplexity=30, verbose=TRUE, max_iter = 500))
+
+plot(carre.tsne3$Y, t='n', main="tsne")
+text(carre.tsne3$Y, labels= carre$Rating, col=colour3[carre$Rating])
+```
+# Feature selection: Filter method
+```{r}
+# Installing and loading our caret package
+# ---
+# 
+suppressWarnings(
+        suppressMessages(if
+                         (!require(caret, quietly=TRUE))
+                install.packages("caret")))
+library(caret)
+
+```
+
+
+```{r}
+# Installing and loading the corrplot package for plotting
+# ---
+# 
+suppressWarnings(
+        suppressMessages(if
+                         (!require(corrplot, quietly=TRUE))
+                install.packages("corrplot")))
+library(corrplot)
+
+```
+
+
+```{r}
+# Calculating the correlation matrix
+# ---
+Carrefour <- carre %>% select_if(is.numeric)
+carrefour <- Carrefour [-c(1,11,14 )]
+View(carrefour)
+
+correlationMatrix <- cor(carrefour)
+
+# Find attributes that are highly correlated
+# ---
+#
+highlyCorrelated <- findCorrelation(correlationMatrix, cutoff= 0.75)
+
+# Highly correlated attributes
+# ---
+# 
+highlyCorrelated
+
+names(carrefour[,highlyCorrelated])
+
+```
+
+
+```{r}
+# We can remove the variables with a higher correlation (in this case the Tax and cogs columns)
+# and comparing the results graphically as shown below
+# ---
+# 
+# Removing Redundant Features 
+# ---
+# 
+carre2<-carrefour[-highlyCorrelated]
+
+# Performing our graphical comparison
+# ---
+# 
+par(mfrow = c(1, 2))
+corrplot(correlationMatrix, order = "hclust")
+corrplot(cor(carre2), order = "hclust")
+
+```
+
+```{r}
+# Feature Ranking
+# ---
+# We will use the FSelector Package. This is a package containing functions for selecting attributes from a given dataset. 
+# ---
+# OUR CODE GOES BELOW
+# 
+
+# We install and load the required packages
+# ---
+library(rJava)
+suppressWarnings(
+        suppressMessages(if
+                         (!require(FSelector, quietly=TRUE))
+                install.packages("FSelector")))
+library(FSelector)
+```
+
+
+```{r}
+# Loading our dataset 
+
+
+Dataset<-Carrefour[-1] 
+str(Dataset)
+head(Dataset)
+
+```
+
+
+```{r}
+# From the FSelector package, we use the correlation coefficient as a unit of valuation. 
+# This would be one of the several algorithms contained 
+# in the FSelector package that can be used rank the variables.
+# ---
+# 
+Scores <- linear.correlation(Total~., Dataset)
+Scores
+
+```
+
+
+```{r}
+# From the output above, we observe a list containing 
+# rows of variables on the left and score on the right. 
+# In order to make a decision, we define a cutoff 
+# i.e. suppose we want to use the top 5 representative variables, 
+# through the use of the cutoff.k function included in the FSelector package. 
+# Alternatively, we could define our cutoff visually 
+# but in cases where there are few variables than in high dimensional datasets.
+# 
+# cutoff.k: The algorithms select a subset from a ranked attributes. 
+# ---
+#
+Subset <- cutoff.k(Scores, 5)
+as.data.frame(Subset)
+
+```
+
+
+```{r}
+# We could also set cutoff as a percentage which would indicate 
+# that we would want to work with the percentage of the best variables.
+# ---
+#
+Subset2 <-cutoff.k.percent(Scores, 0.4)
+as.data.frame(Subset2)
+
+```
+
+
+```{r}
+# Instead of using the scores for the correlation coefficient, 
+# we can use an entropy - based approach as shown below;
+# ---
+# 
+Scores2 <- information.gain(Total~., Dataset)
+
+# Choosing Variables by cutoffSubset <- cutoff.k(Scores2, 5)
+# ---
+# 
+Subset3 <- cutoff.k(Scores2, 5)
+as.data.frame(Subset3)
+
+```
+```{r}
+#From the above, we can see that the columns tax, cogs, gross income, quantity and unit price are valueable columns to to use in ananlysis
+
+```
+# PART3: Association rules
+
+```{r}
+#This section will require that you create association rules that will allow you to identify relationships between variables in the dataset. You are provided with a separate dataset that comprises groups of items that will be associated with others. Just like in the other sections, you will also be required to provide insights for your analysis.
+
+# Installing the package
+install.packages("arules")
+
+# Loading the library
+library(arules)
+
+#Loading the dataset
+super <- read.transactions ("http://bit.ly/SupermarketDatasetII", sep= ",")
+super
+```
+
+```{r}
+# Verifying the objects class
+class(super)
+
+```
+```{r}
+# Previewing our first 5 transactions
+#
+inspect(super[1:5])
+```
+```{r}
+# Preview the items that make up our dataset,
+# 
+items<-as.data.frame(itemLabels(super))
+colnames(items) <- "Item"
+head(items, 10)    
+```
+
+```{r}
+# Generating a summary of the transaction dataset
+# ---
+# This would give us some information such as the most purchased items, 
+# distribution of the item sets (no. of items purchased in each transaction), etc.
+# ---
+# 
+summary(super)
+```
+
+```{r}
+# Exploring the frequency of some articles 
+# i.e. transacations ranging from 8 to 10 and performing 
+# some operation in percentage terms of the total transactions 
+# Getting the support
+itemFrequency(super[, 1:10],type = "absolute")
+round(itemFrequency(super[, 1:10],type = "relative")*100,2)
+```
+
+```{r}
+# Producing a chart of frequencies and filtering 
+# to consider only items with a minimum percentage 
+# of support/ considering a top x of items
+# ---
+# Displaying top 10 most common items in the transactions dataset 
+# and the items whose relative importance is at least 10%
+# 
+par(mfrow = c(1, 2))
+
+# plot the frequency of   top N items
+itemFrequencyPlot(super, topN = 10,col="darkgreen")
+
+# Setting the minsup for getting the frequent itemset
+itemFrequencyPlot(super, support = 0.075,col="darkred")
+```
+
+```{r}
+# Building a model based on association rules 
+# using the apriori function 
+# ---
+# We use Min Support as 0.001 and confidence as 0.8
+# ---
+# 
+rules <- apriori (super, parameter = list(supp = 0.001, conf = 0.8))
+rules
+
+```
+
+```{r}
+# We use measures of significance and interest on the rules, 
+# determining which ones are interesting and which to discard.
+# ---
+# However since we built the model using 0.001 Min support 
+# and confidence as 0.8 we obtained 410 rules.
+# However, in order to illustrate the sensitivity of the model to these two parameters, 
+# we will see what happens if we increase the support or lower the confidence level
+# 
+
+# Building a apriori model with Min Support as 0.002 and confidence as 0.8.
+rules2 <- apriori (super,parameter = list(supp = 0.0015, conf = 0.7)) 
+
+# Building apriori model with Min Support as 0.002 and confidence as 0.6.
+rules3 <- apriori (super, parameter = list(supp = 0.001, conf = 0.6)) 
+
+rules2
+
+rules3
+```
+
+```{r}
+# We can perform an exploration of our model 
+# through the use of the summary function as shown
+# ---
+# Upon running the code, the function would give us information about the model 
+# i.e. the size of rules, depending on the items that contain these rules. 
+# In our above case, most rules have 3 and 5 items though some rules do have upto 6. 
+# More statistical information such as support, lift and confidence is also provided.
+# ---
+# 
+summary(rules)
+```
+```{r}
+# Observing rules built in our model i.e. first 5 model rules
+# ---
+# 
+inspect(rules[1:5])
+
+
+# Interpretation of the first rule:
+# ---
+# If someone buys frozen smoothies and spinach, they are 90% likely to buy mineral water too
+# ---
+```
+```{r}
+# Ordering these rules by a criteria such as the level of confidence
+# then looking at the first five rules.
+# We can also use different criteria such as: (by = "lift" or by = "support")
+# 
+rules<-sort(rules, by="confidence", decreasing=TRUE)
+inspect(rules[1:5])
+
+# Interpretation
+# ---
+# The first 4 rules have a confidence of 100
+# ---
+```
+#PART 4: Anomaly detection
+
+```{r}
+#You have also been requested to check whether there are any anomalies in the given sales dataset. The objective of this task being fraud detection.
+
+#Loading the data
+fraud_path <- "http://bit.ly/CarreFourSalesDataset"
+fraud <- read.csv(fraud_path)
+head(fraud)
+
+
+
+fraud$count <- as.numeric(ave(fraud$Date, fraud$Date, FUN = length))
+fraud
+
+
+#Converting the date column from charcter type to date format.
+fraud$Date <- as.Date(fraud$Date, format= "%m/%d/%y")
+fraud_ts <- tibble::as_tibble(fraud)
+head(fraud_ts)
+
+#Checking the type of data we have
+class(fraud_ts)
+
+```
+```{r}
+#Checking the month, day and year individually
+library(tidyr)
+
+df <- data.frame(date = fraud$Date, stringsAsFactors = FALSE)
+
+df %>%
+  separate(date, sep="/", into = c("month", "day", "year"))
+
+```
+
+```{r}
+#Grouping by the sales and converting to tibble tibbletime
+library(tibbletime)
+carre_fraud <- fraud_ts %>%
+  group_by(count)%>%
+  as_tbl_time(Date)
+  
+carre_fraud
+
+```
+
+```{r}
+#Installing the package normalize
+install.packages("anomalize")
+```
+
+```{r}
+library(tidyverse)
+library(anomalize)
+```
+
+```{r}
+carre_fraud %>%
+  time_decompose(count)%>%
+  anomalize(remainder)%>%
+  time_recompose()%>%
+  plot_anomalies(time_recomposed = TRUE)
+
+
+```
+
+
+```{r}
+carre_fraud %>%
+  time_decompose(count)%>%
+  anomalize(remainder)%>%filter(anomaly == "Yes")
+```
+
+```{r}
+
+```
+
+```{r}
+
+
+```
